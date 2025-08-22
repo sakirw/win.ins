@@ -32,15 +32,18 @@ jobs:
       - name: Build EXE with PyInstaller
         shell: pwsh
         run: |
-          $iconArg = ""
-          if (Test-Path "icon.ico") { $iconArg = "--icon icon.ico" }
+          # Ortak PyInstaller argümanları
+          $args = @('--noconfirm','--windowed','--name','SatisRaporGuncelleme')
+          # İkon varsa iki AYRI argüman olarak ekle (tek string değil!)
+          if (Test-Path 'icon.ico') { $args += @('--icon','icon.ico') }
 
+          # Temizlik
           if (Test-Path build) { Remove-Item -Recurse -Force build }
           if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
           if (Test-Path SatisRaporGuncelleme.spec) { Remove-Item -Force SatisRaporGuncelleme.spec }
 
-          pyinstaller --noconfirm --windowed --name "SatisRaporGuncelleme" $iconArg `
-            satis_rapor_guncelleme.py
+          # Derle
+          pyinstaller @args 'satis_rapor_guncelleme.py'
 
       - name: Install Inno Setup
         shell: pwsh
