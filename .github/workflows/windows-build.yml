@@ -1,0 +1,32 @@
+name: Windows EXE + Installer
+on:
+  push: { branches: [ "main" ] }
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: |
+          if (Test-Path "icon.png") { python convert_icon.py }
+      - shell: pwsh
+        run: |
+          $iconArg = ""; if (Test-Path "icon.ico") { $iconArg = "--icon icon.ico" }
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+          if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
+          if (Test-Path SatisRaporGuncelleme.spec) { Remove-Item -Force SatisRaporGuncelleme.spec }
+          pyinstaller --noconfirm --windowed --name "SatisRaporGuncelleme" $iconArg `
+            satis_rapor_guncelleme.py
+      - run: choco install innosetup -y
+      - run: "& 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' 'SatisRaporGuncelleme.iss'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatisRaporGuncelleme-win
+          path: |
+            dist/SatisRaporGuncelleme/**
+            Output/*.exe
