@@ -1,63 +1,68 @@
-name: Windows EXE + Installer
+name: Windows build (SatisRaporGuncelleme)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
-
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: Install dependencies
-        shell: pwsh
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt pyinstaller
 
-      - name: Convert icon (PNG -> ICO, optional)
-        shell: pwsh
+      - name: Build EXE
         run: |
-          if (Test-Path "icon.png") { python convert_icon.py }
+          pyinstaller --noconfirm --windowed `
+            --name "SatisRaporGuncelleme" `
+            --icon icon.png `
+            satis_rapor_guncelleme.py
 
-      - name: Build EXE with PyInstaller
-        shell: pwsh
-        run: |
-          # Ortak PyInstaller argümanları
-          $args = @('--noconfirm','--windowed','--name','SatisRaporGuncelleme')
-          # İkon varsa iki AYRI argüman olarak ekle (tek string değil!)
-          if (Test-Path 'icon.ico') { $args += @('--icon','icon.ico') }
-
-          # Temizlik
-          if (Test-Path build) { Remove-Item -Recurse -Force build }
-          if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
-          if (Test-Path SatisRaporGuncelleme.spec) { Remove-Item -Force SatisRaporGuncelleme.spec }
-
-          # Derle
-          pyinstaller @args 'satis_rapor_guncelleme.py'
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup -y
-
-      - name: Build Windows Installer (Inno Setup)
-        shell: pwsh
-        run: |
-          & 'C:/Program Files (x86)/Inno Setup 6/ISCC.exe' 'SatisRaporGuncelleme.iss'
-
-      - name: Upload artifacts (EXE app folder + Installer)
+      - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SatisRaporGuncelleme-win
-          path: |
-            dist/SatisRaporGuncelleme/**
-            Output/*.exe
+          name: SatisRaporGuncelleme-win-exe
+          path: dist/SatisRaporGuncelleme/**
+
+  installer:
+    runs-on: windows-latest
+    needs: build-windows
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download EXE artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SatisRaporGuncelleme-win-exe
+          path: dist
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Installer (Inno Setup)
+        run: |
+          & 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' SatisRaporGuncelleme.iss
+
+      - name: Upload Installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SatisRaporGuncelleme-win-installer
+          path: Output/SatisRaporGuncelleme-Setup.exe
