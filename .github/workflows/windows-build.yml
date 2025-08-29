@@ -23,20 +23,25 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller
+          if (Test-Path requirements.txt) {
+            pip install -r requirements.txt
+          } else {
+            pip install pyinstaller pandas openpyxl numpy holidays plyer
+          }
 
-      - name: Build EXE
+      - name: Build EXE (onefile)
         run: |
-          pyinstaller --noconfirm --windowed `
+          $icon = (Test-Path "icon.png") ? "--icon icon.png" : ""
+          pyinstaller --noconfirm --windowed --onefile `
             --name "SatisRaporGuncelleme" `
-            --icon icon.png `
+            $icon `
             satis_rapor_guncelleme.py
 
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
           name: SatisRaporGuncelleme-win-exe
-          path: dist/SatisRaporGuncelleme/**
+          path: dist/SatisRaporGuncelleme.exe
 
   installer:
     runs-on: windows-latest
@@ -53,6 +58,12 @@ jobs:
         with:
           name: SatisRaporGuncelleme-win-exe
           path: dist
+
+      # Inno Setup .iss 'dist\SatisRaporGuncelleme\*' bekliyor → exe'yi klasöre taşıyoruz
+      - name: Place exe into dist\SatisRaporGuncelleme\
+        run: |
+          New-Item -ItemType Directory -Force -Path dist\SatisRaporGuncelleme | Out-Null
+          Move-Item -Force dist\SatisRaporGuncelleme.exe dist\SatisRaporGuncelleme\
 
       - name: Install Inno Setup
         run: choco install innosetup -y
